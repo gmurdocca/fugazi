@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
+import traceback
 import requests
 import logging
 import yaml
+import time
 import json
 import sys
+import pdb
 import os
 
-cryptocompare_apikey = ""
-cryptoapis_apikey = ""
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -18,9 +19,17 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+config_file = ".config"
+with open(config_file, "r") as config_file:
+    config = yaml.load(config_file.read(), Loader=yaml.Loader)
+
+
 class Coin:
 
-    def __init__(self, api_key, symbol):
+    def __init__(self, api_key, symbol, freshness=5):
+        """
+        freshness in seconds
+        """
         self.api_key = api_key
         self.symbol = symbol
         self.default_headers = {
@@ -28,7 +37,12 @@ class Coin:
                 "X-API-Key": self.api_key
                 }
         self.asset_file = "./assets.json"
-        self.asset = self._get_asset_by_symbol(self.symbol)
+        self.freshness = freshness
+        self.asset_detail = None
+
+    @property
+    def asset(self):
+        return self._get_asset_by_symbol(self.symbol)
 
     def _get_all_assets(self):
         if os.path.exists(self.asset_file):
@@ -56,12 +70,32 @@ class Coin:
                 asset_file.write(json.dumps(assets))
         return assets
 
+    def is_fresh(self):
+        """
+        returns True if asset_detail age < self.freshness
+        """
+        if self.asset_detail and time.time() - self.asset_detail['timestamp'] < self.freshness:
+            return True
+        return False
+
     def _get_asset_by_symbol(self, symbol):
-        assets = self._get_all_assets()
-        for asset in assets:
-            if 'originalSymbol' in asset and asset['originalSymbol'] == symbol:
-                return asset
-        raise Exception(f"Couldn't find asset with symbol: {symbol}")
+        if not self.is_fresh():
+            found = False
+            assets = self._get_all_assets()
+            for asset in assets:
+                if 'originalSymbol' in asset and asset['originalSymbol'] == symbol:
+                    found = True
+                    url = f'https://api.cryptoapis.io/v1/assets/{asset["_id"]}'
+                    response = requests.get(url, headers=self.default_headers)
+                    data = json.loads(response.text)['payload']
+                    self.asset_detail = {
+                            'timestamp': time.time(),
+                            'asset': data
+                            }
+                    break
+            if not found:
+                raise Exception(f"Couldn't find asset with symbol: {symbol}")
+        return self.asset_detail['asset']
 
 #    def current_price(self):
 #        #url = f"https://min-api.cryptocompare.com/data/price?fsym={self.from_sym}&tsyms={self.to_sym}"
@@ -80,13 +114,24 @@ class Coin:
         return self.asset['volume']
         
         
+
+def main():
+    apikey = config['apikeys']['cryptoapi']
+    coin = Coin(apikey, 'ETH')
+    print(coin.get_ath(), coin.get_current_price(), coin.get_24hour_volume()) 
+
+
+
 if __name__ == "__main__":
 #    coins_owned = ['BTC', 'BCH', 'ETH']
 #    for coin_owned in coins_owned:
 #        current_price = Coin(cryptocompare_apikey, coin_owned, 'AUD').current_price()
 #        print(coin_owned, current_price)
-    coin = Coin(cryptoapis_apikey, 'ETH')
-
-    print(coin.get_ath(), coin.get_current_price(), coin.get_24hour_volume()) 
+    try:
+        main()
+    except:
+        extype, value, tb = sys.exc_info()
+        traceback.print_exc()
+        pdb.post_mortem(tb)
 
 
