@@ -97,13 +97,6 @@ class Coin:
                 raise Exception(f"Couldn't find asset with symbol: {symbol}")
         return self.asset_detail['asset']
 
-#    def current_price(self):
-#        #url = f"https://min-api.cryptocompare.com/data/price?fsym={self.from_sym}&tsyms={self.to_sym}"
-#        headers = {"Apikey": self.api_key}
-#        result = requests.get(url, headers=headers)
-#        current_price = json.loads(result.text)[self.to_sym]
-#        return current_price
-
     def get_ath(self):
         return self.asset['allTimeHigh']
 
@@ -123,10 +116,6 @@ def main():
 
 
 if __name__ == "__main__":
-#    coins_owned = ['BTC', 'BCH', 'ETH']
-#    for coin_owned in coins_owned:
-#        current_price = Coin(cryptocompare_apikey, coin_owned, 'AUD').current_price()
-#        print(coin_owned, current_price)
     try:
         main()
     except:
