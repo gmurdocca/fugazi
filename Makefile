@@ -8,7 +8,6 @@ help:
 
 env:
 	which virtualenv >/dev/null || (echo "Please install virtualenv (`pip install virtualenv`)" && exit 1)
-
 	# create the virtualenv if it doesn't already exist
 	test -d .env || virtualenv -p python3 .env >&2
 	. .env/bin/activate >&2 && \
